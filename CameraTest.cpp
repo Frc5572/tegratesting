@@ -7,11 +7,6 @@
 using namespace cv;
 using namespace std;
 
-struct dPoint {
-	double x, y;
-	dPoint(double mx, double my) : x(mx), y(my){}
-};
-
 int main() {	
 	VideoCapture stream1(0);   //0 is the id of video device.0 if you have only one camera.
 	if (!stream1.isOpened()) { //check if video device has been initialised
@@ -28,22 +23,31 @@ int main() {
 		inRange(HSVMat, Scalar(28,189,31), Scalar(128,255,131), RangeMat); //Convert to exposure feed
 		vector<vector<Point>> points;
 		vector<Vec4i> hierarchy;
-		findContours(RangeMat,points,hierarchy,CV_RETR_TREE, CV_CHAIN_APPROX_SIMPLE);
+		findContours(RangeMat,points,hierarchy,CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE);
 		for(int i = 0; i < points.size();i++){
+			double ax = 0, ay = 0;			
 			for (int j = 0; j < points[i].size();j++){		
-				
-				Point a = points[i][j-1 < 0 ? points[i].size()-1 : j-1];
-				Point b = points[i][j];
-				Point c = points[i][j+1 >= points[i].size() ? 0 : j+1];
-				dPoint va = dPoint(b.x-a.x, b.y-a.y);
-				dPoint vb = dPoint(c.x-b.x, c.y-b.y);
-				double val = sqrt((va.x*va.x)+(va.y*va.y));
-				double vbl = sqrt((vb.x*vb.x)+(vb.y*vb.y));
-				dPoint na = dPoint(((double)va.x)/val, ((double)va.y)/val);
-				dPoint nb = dPoint(((double)vb.x)/vbl, ((double)vb.y)/vbl);
-				double angle = na.x*nb.x+na.y*nb.y;
-				if(angle < .1)
-				circle(cameraFrame, points[i][j], 5, Scalar(angle*255.0,0,0), 5); std::cout << angle << std::endl;
+				ax += points[i][j].x;		
+				ay += points[i][j].y;
+			}
+			ax /= points[i].size();
+			ay /= points[i].size();
+			circle(cameraFrame, Point(ax, ay), 5, Scalar(0, 0, 0), 5);
+			double ang1 = 45, ang2 = 135, ang3 = 225, ang4 = 315;
+			Point a1, a2, a3, a4;
+			double d1 = 0, d2 = 0, d3 = 0, d4 = 0;
+			for (int j = 0; j < points[i].size();j++){
+				double px = points[i][j].x - ax;
+				double py = points[i][j].y - ay;
+				double angle = 180 * atan2(py, px)/ 3.14159;
+				double dist = py*py+px*px;
+				while(angle < 0) angle += 360;
+				while(angle > 360) angle -= 360; //TODO Angle calculations
+				if(angle - ang1 < (ang1 + ang2) / 2 && dist > d1){ // Candidate 1
+					a1 = points[i][j];
+					d1 = dist;
+					ang1 = angle;
+				}
 			}
 		}
 		if (waitKey(30) >= 0){		
